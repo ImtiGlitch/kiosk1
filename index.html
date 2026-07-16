@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Wildfire Burger Co. — Self-Order Kiosk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --char:#1C1410; --char-2:#2A2019; --char-3:#3A2C22;
+    --ember:#E3492D; --ember-dark:#C23A21; --ember-light:#FF6B4A;
+    --blaze:#F2A93C; --blaze-dark:#D4901F;
+    --cream:#FBF3E7; --cream-2:#F3E7D3; --cream-3:#EADFC7;
+    --smoke:#8A7C6D; --ash:#2B211B;
+    --success:#3F9142; --success-bg:#E7F4E8;
+    --radius-lg:22px; --radius-md:14px; --radius-sm:9px;
+    --shadow-card:0 2px 8px rgba(28,20,16,.08), 0 10px 24px rgba(28,20,16,.06);
+    --shadow-pop:0 20px 60px rgba(20,12,8,.35);
+    --font-display:'Fredoka',sans-serif; --font-body:'Work Sans',sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%; overflow:hidden; font-family:var(--font-body); background:var(--char); color:var(--ash); user-select:none;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+  input{font-family:inherit;}
+  .app{position:relative; width:100%; height:100vh; height:100dvh; overflow:hidden;}
+  .screen{position:absolute; inset:0; display:none; flex-direction:column; opacity:0; transition:opacity .35s ease;}
+  .screen.active{display:flex; opacity:1;}
+  h1,h2,h3{font-family:var(--font-display); margin:0; color:var(--ash);}
+  .visually-hidden{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0);}
+
+  /* ---------------- Welcome / idle screen ---------------- */
+  #screen-welcome{
+    background: radial-gradient(circle at 50% 30%, #3A2318 0%, #1C1410 60%, #120C09 100%);
+    align-items:center; justify-content:center; text-align:center; overflow:hidden;
+  }
+  .ember-particle{ position:absolute; bottom:-20px; border-radius:50%; background:radial-gradient(circle, var(--blaze) 0%, var(--ember) 60%, transparent 75%); opacity:.85; animation:rise linear infinite; filter:blur(.3px);}
+  @keyframes rise{
+    0%{ transform:translateY(0) translateX(0) scale(1); opacity:0;}
+    10%{opacity:.9;}
+    100%{ transform:translateY(-110vh) translateX(var(--drift,20px)) scale(.3); opacity:0;}
+  }
+  .welcome-inner{position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; gap:28px; padding:20px;}
+  .brand-mark{ display:flex; align-items:center; gap:16px;}
+  .brand-flame{width:76px; height:76px; flex-shrink:0;}
+  .brand-name{font-family:var(--font-display); font-weight:700; font-size:clamp(38px,7vw,64px); color:var(--cream); letter-spacing:.5px; line-height:1;}
+  .brand-tag{color:var(--blaze); font-size:clamp(14px,2vw,18px); letter-spacing:3px; text-transform:uppercase; font-weight:600; margin-top:6px;}
+  .tap-start{
+    margin-top:18px; background:linear-gradient(135deg,var(--ember-light),var(--ember) 60%,var(--ember-dark));
+    color:#fff; font-family:var(--font-display); font-weight:600; font-size:clamp(20px,3vw,26px);
+    padding:22px 64px; border-radius:999px; box-shadow:0 10px 30px rgba(227,73,45,.45), inset 0 1px 0 rgba(255,255,255,.25);
+    animation:pulse-btn 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse-btn{ 0%,100%{transform:scale(1);} 50%{transform:scale(1.045);} }
+  .lang-toggle{ position:absolute; top:24px; right:24px; z-index:3; display:flex; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:999px; padding:4px;}
+  .lang-toggle button{ padding:9px 18px; border-radius:999px; color:var(--cream-3); font-weight:600; font-size:14px;}
+  .lang-toggle button.active{ background:var(--blaze); color:var(--char);}
+  .welcome-sub{color:var(--cream-3); font-size:15px; max-width:420px; opacity:.8;}
+
+  /* ---------------- Generic top bar (non-welcome screens) ---------------- */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:14px 22px; background:var(--char); color:var(--cream); flex-shrink:0; z-index:5;}
+  .topbar-left{display:flex; align-items:center; gap:12px;}
+  .topbar-logo{width:34px; height:34px;}
+  .topbar-title{font-family:var(--font-display); font-weight:600; font-size:19px;}
+  .topbar-right{display:flex; align-items:center; gap:10px;}
+  .back-btn{ display:flex; align-items:center; gap:6px; color:var(--cream-3); font-weight:600; font-size:14px; padding:8px 14px; border-radius:999px; background:rgba(255,255,255,.08);}
+  .back-btn:hover{background:rgba(255,255,255,.15);}
+  .step-dots{display:flex; gap:6px; align-items:center;}
+  .step-dots span{width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.25);}
+  .step-dots span.done{background:var(--blaze);}
+  .step-dots span.now{background:var(--ember-light); transform:scale(1.3);}
+
+  /* ---------------- Order type screen ---------------- */
+  #screen-ordertype{ background:var(--cream);}
+  .ordertype-wrap{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:36px; padding:24px;}
+  .ordertype-wrap h2{font-size:clamp(24px,4vw,34px); color:var(--ash);}
+  .ordertype-cards{display:flex; gap:28px; flex-wrap:wrap; justify-content:center;}
+  .ot-card{
+    width:260px; background:#fff; border-radius:var(--radius-lg); padding:36px 24px; text-align:center;
+    box-shadow:var(--shadow-card); border:3px solid transparent; transition:transform .15s ease, border-color .15s ease;
+  }
+  .ot-card:hover{transform:translateY(-4px); border-color:var(--blaze);}
+  .ot-card:active{transform:translateY(0) scale(.98);}
+  .ot-icon{font-size:56px; margin-bottom:14px;}
+  .ot-card h3{font-size:22px; margin-bottom:6px;}
+  .ot-card p{color:var(--smoke); font-size:14px; margin:0;}
+
+  /* ---------------- Main ordering screen ---------------- */
+  #screen-order{ background:var(--cream);}
+  .order-body{ flex:1; display:grid; grid-template-columns:150px 1fr 340px; overflow:hidden; min-height:0;}
+  .cat-rail{ background:var(--cream-2); border-right:1px solid var(--cream-3); overflow-y:auto; padding:10px 0;}
+  .cat-btn{ width:100%; display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px 6px; font-size:12.5px; font-weight:600; color:var(--smoke); border-left:4px solid transparent;}
+  .cat-btn .cat-icon{font-size:26px;}
+  .cat-btn.active{ background:var(--cream); color:var(--ember); border-left-color:var(--ember);}
+  .menu-scroll{ overflow-y:auto; padding:22px 24px 90px;}
+  .menu-cat-heading{font-size:22px; margin-bottom:4px;}
+  .menu-cat-desc{color:var(--smoke); font-size:13.5px; margin-bottom:16px;}
+  .item-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:16px;}
+  .item-card{ background:#fff; border-radius:var(--radius-md); box-shadow:var(--shadow-card); overflow:hidden; text-align:left; display:flex; flex-direction:column; transition:transform .12s ease;}
+  .item-card:hover{transform:translateY(-3px);}
+  .item-card:active{transform:translateY(0) scale(.98);}
+  .item-media{ height:96px; background:linear-gradient(135deg,var(--cream-2),var(--cream-3)); display:flex; align-items:center; justify-content:center; font-size:46px; position:relative;}
+  .heat-badge{ position:absolute; top:8px; right:8px; font-size:11px; background:rgba(28,20,16,.75); color:#fff; padding:3px 7px; border-radius:999px; display:flex; gap:2px; align-items:center;}
+  .item-info{padding:12px 13px 14px; display:flex; flex-direction:column; gap:4px; flex:1;}
+  .item-name{font-weight:700; font-size:14.5px; line-height:1.25;}
+  .item-desc{font-size:12px; color:var(--smoke); line-height:1.35; flex:1;}
+  .item-footer{display:flex; align-items:center; justify-content:space-between; margin-top:8px;}
+  .item-price{font-weight:800; color:var(--ember-dark); font-size:15px;}
+  .add-chip{background:var(--ash); color:#fff; font-size:12px; font-weight:700; padding:7px 12px; border-radius:999px;}
+  .add-chip:hover{background:var(--ember);}
+
+  /* ---------------- Cart panel ---------------- */
+  .cart-panel{ background:#fff; border-left:1px solid var(--cream-3); display:flex; flex-direction:column; min-height:0;}
+  .cart-head{padding:18px 20px 12px; border-bottom:1px solid var(--cream-3);}
+  .cart-head h3{font-size:19px; display:flex; align-items:center; gap:8px;}
+  .cart-sub{font-size:12.5px; color:var(--smoke); margin-top:2px;}
+  .cart-items{flex:1; overflow-y:auto; padding:8px 16px;}
+  .cart-empty{ display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--smoke); text-align:center; gap:8px; padding:20px;}
+  .cart-empty .emoji{font-size:40px;}
+  .cart-line{ padding:12px 0; border-bottom:1px dashed var(--cream-3); display:flex; gap:10px;}
+  .cart-line-qty{ font-weight:800; color:var(--ember-dark); font-size:14px; width:26px; flex-shrink:0;}
+  .cart-line-body{flex:1; min-width:0;}
+  .cart-line-name{font-weight:700; font-size:13.5px;}
+  .cart-line-mods{font-size:11.5px; color:var(--smoke); margin-top:2px; line-height:1.4;}
+  .cart-line-actions{display:flex; gap:10px; margin-top:6px;}
+  .cart-line-actions button{font-size:11.5px; font-weight:700; color:var(--ember-dark); text-decoration:underline;}
+  .cart-line-price{font-weight:700; font-size:13.5px; white-space:nowrap;}
+  .cart-summary{padding:14px 20px 20px; border-top:1px solid var(--cream-3);}
+  .sum-row{display:flex; justify-content:space-between; font-size:13.5px; color:var(--smoke); margin-bottom:6px;}
+  .sum-row.total{color:var(--ash); font-weight:800; font-size:18px; margin-top:8px; padding-top:10px; border-top:1px solid var(--cream-3);}
+  .checkout-btn{ width:100%; margin-top:14px; background:var(--ember); color:#fff; font-family:var(--font-display); font-weight:600; font-size:17px; padding:16px; border-radius:999px; box-shadow:0 8px 20px rgba(227,73,45,.35);}
+  .checkout-btn:disabled{background:var(--smoke); box-shadow:none; opacity:.5; cursor:not-allowed;}
+
+  /* mobile cart sheet toggle (hidden on wide layout) */
+  .cart-toggle-bar{display:none;}
+
+  /* ---------------- Item modal ---------------- */
+  .modal-backdrop{position:fixed; inset:0; background:rgba(20,12,8,.5); display:none; align-items:flex-end; justify-content:center; z-index:50;}
+  .modal-backdrop.active{display:flex;}
+  .modal-sheet{ width:100%; max-width:560px; max-height:88vh; background:#fff; border-radius:24px 24px 0 0; display:flex; flex-direction:column; box-shadow:var(--shadow-pop); transform:translateY(30px); opacity:0; transition:transform .28s ease, opacity .28s ease;}
+  .modal-backdrop.active .modal-sheet{transform:translateY(0); opacity:1;}
+  @media (min-width:720px){ .modal-backdrop{align-items:center;} .modal-sheet{border-radius:24px; max-height:82vh;} }
+  .modal-hero{ height:120px; background:linear-gradient(135deg,var(--cream-2),var(--cream-3)); display:flex; align-items:center; justify-content:center; font-size:60px; border-radius:24px 24px 0 0; position:relative; flex-shrink:0;}
+  .modal-close{position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%; background:rgba(28,20,16,.55); color:#fff; font-size:18px; display:flex; align-items:center; justify-content:center;}
+  .modal-body{ padding:20px 24px; overflow-y:auto; flex:1;}
+  .modal-body h3{font-size:21px;}
+  .modal-body .desc{color:var(--smoke); font-size:13.5px; margin-top:4px;}
+  .modal-section{margin-top:20px;}
+  .modal-section-title{font-weight:700; font-size:13.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--ash); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;}
+  .pill-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .pill{ padding:10px 18px; border-radius:999px; border:2px solid var(--cream-3); font-weight:600; font-size:13.5px; color:var(--ash); background:#fff;}
+  .pill.selected{ background:var(--ash); border-color:var(--ash); color:#fff;}
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--cream-2); font-size:14px;}
+  .toggle-row .price-delta{color:var(--smoke); font-size:12.5px;}
+  .switch{ width:44px; height:26px; border-radius:999px; background:var(--cream-3); position:relative; flex-shrink:0;}
+  .switch::after{content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:left .15s ease;}
+  .switch.on{background:var(--success);}
+  .switch.on::after{left:21px;}
+  .remove-chip{padding:9px 14px; border-radius:999px; border:2px solid var(--cream-3); font-size:13px; font-weight:600; color:var(--ash);}
+  .remove-chip.off{ background:var(--ash); border-color:var(--ash); color:#fff; text-decoration:line-through; opacity:.75;}
+  .qty-stepper{display:flex; align-items:center; gap:16px;}
+  .qty-btn{width:38px; height:38px; border-radius:50%; background:var(--cream-2); font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .qty-btn:hover{background:var(--cream-3);}
+  .qty-val{font-size:19px; font-weight:800; width:24px; text-align:center;}
+  .modal-footer{ padding:16px 24px 22px; border-top:1px solid var(--cream-3); display:flex; gap:12px; align-items:center; flex-shrink:0;}
+  .modal-total{font-weight:800; font-size:19px; color:var(--ember-dark); white-space:nowrap;}
+  .modal-add-btn{flex:1; background:var(--ember); color:#fff; font-family:var(--font-display); font-weight:600; font-size:16px; padding:15px; border-radius:999px;}
+  .heat-picker{display:flex; gap:4px; color:var(--ember);}
+
+  /* combo upsell modal */
+  .upsell-body{padding:26px 24px; text-align:center;}
+  .upsell-body .big-emoji{font-size:52px;}
+  .upsell-body h3{font-size:22px; margin-top:8px;}
+  .upsell-body p{color:var(--smoke); font-size:14px; margin-top:6px;}
+  .upsell-price{font-family:var(--font-display); color:var(--ember-dark); font-size:26px; margin:14px 0 4px;}
+  .upsell-actions{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+  .upsell-actions button{padding:15px; border-radius:999px; font-weight:700; font-size:15px;}
+  .upsell-yes{background:var(--ember); color:#fff;}
+  .upsell-no{background:var(--cream-2); color:var(--ash);}
+
+  /* ---------------- Checkout screen ---------------- */
+  #screen-checkout{background:var(--cream);}
+  .checkout-body{flex:1; overflow-y:auto; display:flex; justify-content:center; padding:30px 20px;}
+  .checkout-col{width:100%; max-width:480px; display:flex; flex-direction:column; gap:26px;}
+  .co-block h3{font-size:17px; margin-bottom:12px;}
+  .name-display{ background:#fff; border-radius:var(--radius-md); padding:22px; text-align:center; box-shadow:var(--shadow-card); font-size:26px; font-weight:700; letter-spacing:1px; min-height:32px;}
+  .name-display.placeholder{color:var(--smoke); font-weight:500; font-size:16px;}
+  .keyboard{ margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+  .kb-row{display:flex; gap:6px; justify-content:center;}
+  .kb-key{ flex:1; max-width:44px; height:44px; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.12); font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center;}
+  .kb-key:active{background:var(--cream-3);}
+  .kb-key.wide{max-width:110px; font-size:13px;}
+  .pay-tiles{display:flex; gap:14px;}
+  .pay-tile{flex:1; background:#fff; border-radius:var(--radius-md); padding:22px 10px; text-align:center; box-shadow:var(--shadow-card); border:3px solid transparent; font-weight:700; font-size:14px;}
+  .pay-tile .pt-icon{font-size:32px; display:block; margin-bottom:8px;}
+  .pay-tile.selected{border-color:var(--ember);}
+  .co-total-strip{ display:flex; justify-content:space-between; align-items:center; background:var(--char); color:var(--cream); border-radius:var(--radius-md); padding:16px 20px;}
+  .co-total-strip .amt{font-family:var(--font-display); font-size:22px; color:var(--blaze);}
+  .pay-now-btn{ background:var(--ember); color:#fff; font-family:var(--font-display); font-weight:600; font-size:19px; padding:18px; border-radius:999px; box-shadow:0 8px 20px rgba(227,73,45,.35);}
+  .pay-now-btn:disabled{background:var(--smoke); opacity:.5; box-shadow:none;}
+
+  /* ---------------- Processing / receipt ---------------- */
+  #screen-processing{background:var(--char); align-items:center; justify-content:center;}
+  .flame-spinner{width:90px; height:90px; position:relative;}
+  .flame-spinner .ring{position:absolute; inset:0; border-radius:50%; border:6px solid rgba(255,255,255,.12); border-top-color:var(--ember); animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .flame-spinner .center{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:34px;}
+  #screen-processing p{color:var(--cream-3); margin-top:22px; font-size:16px; font-weight:600;}
+
+  #screen-receipt{background:var(--cream); align-items:center; justify-content:center;}
+  .receipt-card{ width:100%; max-width:440px; background:#fff; border-radius:var(--radius-lg); box-shadow:var(--shadow-card); padding:34px 30px; text-align:center; margin:20px;}
+  .receipt-check{width:66px; height:66px; border-radius:50%; background:var(--success-bg); color:var(--success); font-size:34px; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;}
+  .receipt-num-label{font-size:13px; color:var(--smoke); text-transform:uppercase; letter-spacing:1px; font-weight:700; margin-top:18px;}
+  .receipt-num{font-family:var(--font-display); font-size:52px; color:var(--ember-dark); line-height:1.1;}
+  .receipt-meta{color:var(--smoke); font-size:13.5px; margin-top:4px;}
+  .receipt-divider{border:none; border-top:1px dashed var(--cream-3); margin:20px 0;}
+  .receipt-list{text-align:left; font-size:13px; max-height:160px; overflow-y:auto;}
+  .receipt-list .rl-row{display:flex; justify-content:space-between; padding:5px 0; gap:10px;}
+  .receipt-total{display:flex; justify-content:space-between; font-weight:800; font-size:18px; margin-top:14px;}
+  .receipt-thanks{font-size:14px; color:var(--smoke); margin-top:16px; line-height:1.5;}
+  .receipt-progress{ height:5px; background:var(--cream-2); border-radius:999px; overflow:hidden; margin-top:22px;}
+  .receipt-progress-fill{height:100%; background:var(--blaze); width:100%; transform-origin:left; animation:countdown linear forwards;}
+  @keyframes countdown{ from{transform:scaleX(1);} to{transform:scaleX(0);} }
+  .new-order-btn{margin-top:18px; background:var(--ash); color:#fff; font-weight:700; font-size:14px; padding:12px 26px; border-radius:999px;}
+
+  /* ---------------- toast ---------------- */
+  .toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px); background:var(--ash); color:#fff; padding:13px 22px; border-radius:999px; font-size:14px; font-weight:600; opacity:0; transition:all .25s ease; z-index:100; box-shadow:var(--shadow-pop); display:flex; align-items:center; gap:8px; pointer-events:none;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* ---------------- responsive: narrow / portrait ---------------- */
+  @media (max-width:900px){
+    .order-body{grid-template-columns:1fr; grid-template-rows:auto 1fr auto;}
+    .cat-rail{ display:flex; flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--cream-3); padding:8px 6px;}
+    .cat-btn{width:auto; flex-direction:row; padding:10px 14px; border-left:none; border-bottom:3px solid transparent; white-space:nowrap;}
+    .cat-btn.active{border-left:none; border-bottom-color:var(--ember);}
+    .menu-scroll{padding-bottom:110px;}
+    .cart-panel{ position:fixed; left:0; right:0; bottom:0; top:auto; height:auto; max-height:0; border-left:none; border-top:1px solid var(--cream-3); border-radius:20px 20px 0 0; box-shadow:0 -10px 30px rgba(0,0,0,.15); transition:max-height .3s ease; z-index:40;}
+    .cart-panel.expanded{max-height:78vh;}
+    .cart-head{cursor:pointer;}
+    .cart-toggle-bar{
+      display:flex; position:fixed; left:14px; right:14px; bottom:14px; z-index:41; background:var(--ash); color:#fff;
+      border-radius:999px; padding:14px 20px; align-items:center; justify-content:space-between; box-shadow:var(--shadow-pop); font-weight:700;
+    }
+    .cart-toggle-bar .ctb-count{background:var(--ember); border-radius:999px; padding:2px 9px; font-size:12px; margin-right:8px;}
+    .cart-toggle-bar.hidden{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ================= WELCOME ================= -->
+  <section class="screen active" id="screen-welcome">
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button data-lang="en" class="active">EN</button>
+      <button data-lang="fr">FR</button>
+    </div>
+    <div id="ember-field"></div>
+    <div class="welcome-inner">
+      <div class="brand-mark">
+        <svg class="brand-flame" viewBox="0 0 64 64" fill="none">
+          <path d="M32 4C24 16 14 22 14 36a18 18 0 0036 0c0-7-3-11-6-15 1 6-2 9-5 9-4 0-5-4-3-8-4 2-8 7-8 13a8 8 0 0016 0c0-5-2-8-2-8s6 5 6 12a14 14 0 01-28 0c0-12 8-18 12-30 4 4 6 8 6 8s2-6-4-14z" fill="url(#flameGrad)"/>
+          <defs><linearGradient id="flameGrad" x1="14" y1="4" x2="50" y2="54" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#F2A93C"/><stop offset=".55" stop-color="#E3492D"/><stop offset="1" stop-color="#C23A21"/>
+          </linearGradient></defs>
+        </svg>
+        <div>
+          <div class="brand-name" data-t="brandName">Wildfire Burger Co.</div>
+          <div class="brand-tag" data-t="brandTag">Flame-Grilled Fast</div>
+        </div>
+      </div>
+      <p class="welcome-sub" data-t="welcomeSub">Build your order right here — customize everything, skip the line.</p>
+      <button class="tap-start" id="btn-start" data-t="tapStart">Tap to Start</button>
+    </div>
+  </section>
+
+  <!-- ================= ORDER TYPE ================= -->
+  <section class="screen" id="screen-ordertype">
+    <div class="topbar">
+      <div class="topbar-left">
+        <svg class="topbar-logo" viewBox="0 0 64 64" fill="none"><path d="M32 4C24 16 14 22 14 36a18 18 0 0036 0c0-7-3-11-6-15 1 6-2 9-5 9-4 0-5-4-3-8-4 2-8 7-8 13a8 8 0 0016 0c0-5-2-8-2-8s6 5 6 12a14 14 0 01-28 0c0-12 8-18 12-30 4 4 6 8 6 8s2-6-4-14z" fill="#E3492D"/></svg>
+        <span class="topbar-title" data-t="brandName">Wildfire Burger Co.</span>
+      </div>
+      <div class="step-dots"><span class="now"></span><span></span><span></span></div>
+    </div>
+    <div class="ordertype-wrap" style="flex:1;">
+      <h2 data-t="otHeading">How would you like your order?</h2>
+      <div class="ordertype-cards">
+        <button class="ot-card" data-ordertype="dinein">
+          <div class="ot-icon">🍽️</div>
+          <h3 data-t="dineIn">Dine In</h3>
+          <p data-t="dineInDesc">We'll bring it to your table</p>
+        </button>
+        <button class="ot-card" data-ordertype="takeout">
+          <div class="ot-icon">🥡</div>
+          <h3 data-t="takeOut">Take Out</h3>
+          <p data-t="takeOutDesc">Grab it and go</p>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MAIN ORDER SCREEN ================= -->
+  <section class="screen" id="screen-order">
+    <div class="topbar">
+      <div class="topbar-left">
+        <svg class="topbar-logo" viewBox="0 0 64 64" fill="none"><path d="M32 4C24 16 14 22 14 36a18 18 0 0036 0c0-7-3-11-6-15 1 6-2 9-5 9-4 0-5-4-3-8-4 2-8 7-8 13a8 8 0 0016 0c0-5-2-8-2-8s6 5 6 12a14 14 0 01-28 0c0-12 8-18 12-30 4 4 6 8 6 8s2-6-4-14z" fill="#E3492D"/></svg>
+        <span class="topbar-title" data-t="brandName">Wildfire Burger Co.</span>
+      </div>
+      <div class="topbar-right">
+        <button class="back-btn" id="btn-back-ordertype">‹ <span data-t="orderTypeLabel">Order type</span></button>
+      </div>
+    </div>
+    <div class="order-body">
+      <nav class="cat-rail" id="cat-rail"></nav>
+      <div class="menu-scroll" id="menu-scroll"></div>
+      <aside class="cart-panel" id="cart-panel">
+        <div class="cart-head" id="cart-head-toggle">
+          <h3>🧺 <span data-t="yourOrder">Your Order</span></h3>
+          <div class="cart-sub" id="cart-sub"></div>
+        </div>
+        <div class="cart-items" id="cart-items"></div>
+        <div class="cart-summary" id="cart-summary"></div>
+      </aside>
+    </div>
+    <div class="cart-toggle-bar hidden" id="cart-toggle-bar">
+      <span><span class="ctb-count" id="ctb-count">0</span><span data-t="viewOrder">View Order</span></span>
+      <span id="ctb-total">$0.00</span>
+    </div>
+  </section>
+
+  <!-- ================= CHECKOUT ================= -->
+  <section class="screen" id="screen-checkout">
+    <div class="topbar">
+      <div class="topbar-left">
+        <svg class="topbar-logo" viewBox="0 0 64 64" fill="none"><path d="M32 4C24 16 14 22 14 36a18 18 0 0036 0c0-7-3-11-6-15 1 6-2 9-5 9-4 0-5-4-3-8-4 2-8 7-8 13a8 8 0 0016 0c0-5-2-8-2-8s6 5 6 12a14 14 0 01-28 0c0-12 8-18 12-30 4 4 6 8 6 8s2-6-4-14z" fill="#E3492D"/></svg>
+        <span class="topbar-title" data-t="brandName">Wildfire Burger Co.</span>
+      </div>
+      <div class="topbar-right">
+        <button class="back-btn" id="btn-back-order">‹ <span data-t="backToMenu">Back to menu</span></button>
+        <div class="step-dots"><span class="done"></span><span class="now"></span><span></span></div>
+      </div>
+    </div>
+    <div class="checkout-body">
+      <div class="checkout-col">
+        <div class="co-block" id="co-identity-block">
+          <h3 id="co-identity-title" data-t="whoIsThisFor">What's the name for this order?</h3>
+          <div class="name-display placeholder" id="name-display" data-t="namePlaceholder">Type your name below</div>
+          <div class="keyboard" id="keyboard"></div>
+        </div>
+        <div class="co-block">
+          <h3 data-t="howToPay">How would you like to pay?</h3>
+          <div class="pay-tiles">
+            <button class="pay-tile" data-pay="card"><span class="pt-icon">💳</span><span data-t="cardPay">Credit / Debit</span></button>
+            <button class="pay-tile" data-pay="mobile"><span class="pt-icon">📱</span><span data-t="mobilePay">Mobile Pay</span></button>
+          </div>
+        </div>
+        <div class="co-block">
+          <div class="co-total-strip">
+            <span data-t="totalDue">Total Due</span>
+            <span class="amt" id="co-total-amt">$0.00</span>
+          </div>
+          <button class="pay-now-btn" id="btn-pay-now" style="width:100%; margin-top:14px;" disabled data-t="payNow">Pay Now</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PROCESSING ================= -->
+  <section class="screen" id="screen-processing">
+    <div class="flame-spinner"><div class="ring"></div><div class="center">🔥</div></div>
+    <p data-t="processing">Processing your payment…</p>
+  </section>
+
+  <!-- ================= RECEIPT ================= -->
+  <section class="screen" id="screen-receipt">
+    <div class="receipt-card">
+      <div class="receipt-check">✓</div>
+      <h2 data-t="orderPlaced">Order placed!</h2>
+      <div class="receipt-num-label" data-t="yourNumber">Your order number</div>
+      <div class="receipt-num" id="receipt-num">#000</div>
+      <div class="receipt-meta" id="receipt-meta"></div>
+      <hr class="receipt-divider">
+      <div class="receipt-list" id="receipt-list"></div>
+      <div class="receipt-total"><span data-t="total">Total</span><span id="receipt-total-amt">$0.00</span></div>
+      <p class="receipt-thanks" id="receipt-thanks" data-t="thanksTakeout">Grab a receipt slip and we'll call your number when it's ready. Thanks for choosing Wildfire!</p>
+      <div class="receipt-progress"><div class="receipt-progress-fill" id="receipt-progress-fill"></div></div>
+      <button class="new-order-btn" id="btn-new-order" data-t="startNewOrder">Start a New Order</button>
+    </div>
+  </section>
+
+  <!-- ================= ITEM MODAL ================= -->
+  <div class="modal-backdrop" id="item-modal-backdrop">
+    <div class="modal-sheet">
+      <div class="modal-hero"><span id="modal-emoji">🍔</span><button class="modal-close" id="modal-close">✕</button></div>
+      <div class="modal-body">
+        <h3 id="modal-name"></h3>
+        <div class="desc" id="modal-desc"></div>
+        <div class="modal-section" id="modal-size-section" style="display:none;">
+          <div class="modal-section-title" data-t="chooseSize">Choose a size</div>
+          <div class="pill-row" id="modal-sizes"></div>
+        </div>
+        <div class="modal-section" id="modal-remove-section" style="display:none;">
+          <div class="modal-section-title" data-t="customize">Customize</div>
+          <div class="pill-row" id="modal-removables"></div>
+        </div>
+        <div class="modal-section" id="modal-extras-section" style="display:none;">
+          <div class="modal-section-title" data-t="addExtras">Add extras</div>
+          <div id="modal-extras"></div>
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-title" data-t="quantity">Quantity</div>
+          <div class="qty-stepper">
+            <button class="qty-btn" id="modal-qty-minus">–</button>
+            <div class="qty-val" id="modal-qty-val">1</div>
+            <button class="qty-btn" id="modal-qty-plus">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="modal-total" id="modal-total">$0.00</div>
+        <button class="modal-add-btn" id="modal-add-btn" data-t="addToOrder">Add to Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= COMBO UPSELL MODAL ================= -->
+  <div class="modal-backdrop" id="upsell-modal-backdrop">
+    <div class="modal-sheet" style="max-width:420px;">
+      <div class="upsell-body">
+        <div class="big-emoji">🍟🥤</div>
+        <h3 data-t="upsellHeading">Make it a combo?</h3>
+        <p id="upsell-copy" data-t="upsellCopy">Add seasoned fries and a fountain drink</p>
+        <div class="upsell-price" id="upsell-price">+$3.49</div>
+        <div class="upsell-actions">
+          <button class="upsell-yes" id="upsell-yes" data-t="upsellYes">Yes, make it a combo</button>
+          <button class="upsell-no" id="upsell-no" data-t="upsellNo">No thanks</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     STRINGS
+     ============================================================ */
+  const STR = {
+    en: {
+      brandName:"Wildfire Burger Co.", brandTag:"Flame-Grilled Fast",
+      welcomeSub:"Build your order right here — customize everything, skip the line.",
+      tapStart:"Tap to Start",
+      otHeading:"How would you like your order?", dineIn:"Dine In", dineInDesc:"We'll bring it to your table",
+      takeOut:"Take Out", takeOutDesc:"Grab it and go", orderTypeLabel:"Order type",
+      yourOrder:"Your Order", viewOrder:" View Order", emptyCartTitle:"Your tray is empty",
+      emptyCartSub:"Tap any item to add it to your order.", subtotal:"Subtotal", tax:"Tax", total:"Total",
+      checkout:"Checkout", backToMenu:"Back to menu",
+      chooseSize:"Choose a size", customize:"Customize", addExtras:"Add extras", quantity:"Quantity",
+      addToOrder:"Add to Order", updateOrder:"Update Order", addChip:"+ Add",
+      upsellHeading:"Make it a combo?", upsellCopy:"Add seasoned fries and a fountain drink", upsellYes:"Yes, make it a combo", upsellNo:"No thanks",
+      whoIsThisFor:"What's the name for this order?", tableNumberTitle:"What's your table number?",
+      namePlaceholder:"Type your name below", tablePlaceholder:"Enter your table number", howToPay:"How would you like to pay?",
+      cardPay:"Credit / Debit", mobilePay:"Mobile Pay", totalDue:"Total Due", payNow:"Pay Now",
+      processing:"Processing your payment…", orderPlaced:"Order placed!", yourNumber:"Your order number",
+      thanksTakeout:"Grab a receipt slip and we'll call your number when it's ready. Thanks for choosing Wildfire!",
+      thanksDinein:"We'll bring your order right to your table. Thanks for choosing Wildfire!",
+      startNewOrder:"Start a New Order", addedToast:"Added to your order", removeAction:"Remove", editAction:"Edit",
+      keyDone:"Done", keySpace:"Space", keyBackspace:"⌫",
+      dineinMetaPrefix:"Table", takeoutMetaPrefix:"For",
+      catCombosName:"Combos", catCombosDesc:"Great value, ready to go",
+      catBurgersName:"Burgers", catBurgersDesc:"Flame-grilled, your way",
+      catChickenName:"Chicken", catChickenDesc:"Crispy, grilled or spicy",
+      catSidesName:"Sides", catSidesDesc:"The perfect co-star",
+      catDrinksName:"Drinks", catDrinksDesc:"Ice cold, your call",
+      catSweetsName:"Sweets", catSweetsDesc:"Save room for this",
+      sizeS:"Small", sizeM:"Medium", sizeL:"Large",
+      remOnion:"No onion", remPickles:"No pickles", remTomato:"No tomato", remLettuce:"No lettuce", remCheese:"No cheese", remSauce:"No sauce",
+      exCheese:"Extra cheese", exBacon:"Bacon", exAvocado:"Avocado", exEgg:"Fried egg", exPatty:"Extra patty",
+      needName:"Please enter a name to continue", needTable:"Please enter a table number to continue"
+    },
+    fr: {
+      brandName:"Wildfire Burger Co.", brandTag:"Grillé Flamme, Servi Vite",
+      welcomeSub:"Composez votre commande ici — personnalisez tout, sans faire la file.",
+      tapStart:"Touchez pour commencer",
+      otHeading:"Comment souhaitez-vous être servi?", dineIn:"Sur place", dineInDesc:"On vous l'apporte à table",
+      takeOut:"À emporter", takeOutDesc:"Prenez et partez", orderTypeLabel:"Type de commande",
+      yourOrder:"Votre commande", viewOrder:" Voir la commande", emptyCartTitle:"Votre plateau est vide",
+      emptyCartSub:"Touchez un article pour l'ajouter à votre commande.", subtotal:"Sous-total", tax:"Taxes", total:"Total",
+      checkout:"Passer à la caisse", backToMenu:"Retour au menu",
+      chooseSize:"Choisissez une taille", customize:"Personnaliser", addExtras:"Ajouter des extras", quantity:"Quantité",
+      addToOrder:"Ajouter à la commande", updateOrder:"Mettre à jour", addChip:"+ Ajouter",
+      upsellHeading:"En faire un combo?", upsellCopy:"Ajoutez des frites assaisonnées et une boisson", upsellYes:"Oui, un combo", upsellNo:"Non merci",
+      whoIsThisFor:"Quel nom pour cette commande?", tableNumberTitle:"Quel est votre numéro de table?",
+      namePlaceholder:"Entrez votre nom ci-dessous", tablePlaceholder:"Entrez votre numéro de table", howToPay:"Comment souhaitez-vous payer?",
+      cardPay:"Carte de crédit/débit", mobilePay:"Paiement mobile", totalDue:"Total à payer", payNow:"Payer maintenant",
+      processing:"Traitement de votre paiement…", orderPlaced:"Commande envoyée!", yourNumber:"Votre numéro de commande",
+      thanksTakeout:"Prenez votre reçu, on appellera votre numéro. Merci d'avoir choisi Wildfire!",
+      thanksDinein:"On vous apporte votre commande à table. Merci d'avoir choisi Wildfire!",
+      startNewOrder:"Nouvelle commande", addedToast:"Ajouté à votre commande", removeAction:"Retirer", editAction:"Modifier",
+      keyDone:"Terminé", keySpace:"Espace", keyBackspace:"⌫",
+      dineinMetaPrefix:"Table", takeoutMetaPrefix:"Pour",
+      catCombosName:"Combos", catCombosDesc:"Excellent rapport qualité-prix",
+      catBurgersName:"Burgers", catBurgersDesc:"Grillés flamme, à votre goût",
+      catChickenName:"Poulet", catChickenDesc:"Croustillant, grillé ou épicé",
+      catSidesName:"Accompagnements", catSidesDesc:"Le partenaire parfait",
+      catDrinksName:"Boissons", catDrinksDesc:"Bien froides, à vous de choisir",
+      catSweetsName:"Desserts", catSweetsDesc:"Gardez une petite place",
+      sizeS:"Petit", sizeM:"Moyen", sizeL:"Grand",
+      remOnion:"Sans oignon", remPickles:"Sans cornichons", remTomato:"Sans tomate", remLettuce:"Sans laitue", remCheese:"Sans fromage", remSauce:"Sans sauce",
+      exCheese:"Fromage extra", exBacon:"Bacon", exAvocado:"Avocat", exEgg:"Œuf frit", exPatty:"Boulette extra",
+      needName:"Veuillez entrer un nom pour continuer", needTable:"Veuillez entrer un numéro de table"
+    }
+  };
+
+  /* ============================================================
+     MENU DATA
+     ============================================================ */
+  const CATEGORIES = [
+    {id:'combos', icon:'⭐'}, {id:'burgers', icon:'🍔'}, {id:'chicken', icon:'🍗'},
+    {id:'sides', icon:'🍟'}, {id:'drinks', icon:'🥤'}, {id:'sweets', icon:'🍨'}
+  ];
+
+  const REMOVABLES = ['onion','pickles','tomato','lettuce','cheese','sauce'];
+  const EXTRAS = [
+    {id:'exCheese', price:0.80}, {id:'exBacon', price:1.20}, {id:'exAvocado', price:1.00},
+    {id:'exEgg', price:1.00}, {id:'exPatty', price:2.00}
+  ];
+  const SIZE_UPCHARGE = {S:0, M:0.70, L:1.30};
+  const COMBO_BASE = 3.49, COMBO_UPSIZE = 0.80, TAX_RATE = 0.08;
+
+  const MENU = [
+    // Combos — fixed bundles, quantity only
+    {id:'combo1', cat:'combos', name:'Wildfire Classic Combo', desc:'Classic Wildfire Burger, seasoned fries & a fountain drink', price:10.99, heat:0, emoji:'🍔'},
+    {id:'combo2', cat:'combos', name:'Smokehouse BBQ Combo', desc:'BBQ Bacon Burger, seasoned fries & a fountain drink', price:11.99, heat:0, emoji:'🥓'},
+    {id:'combo3', cat:'combos', name:'Crispy Chicken Combo', desc:'Crispy Chicken Sandwich, seasoned fries & a fountain drink', price:10.49, heat:0, emoji:'🍗'},
+    {id:'combo4', cat:'combos', name:'Spicy Blaze Combo', desc:'Blaze Pepper Burger, seasoned fries & a fountain drink', price:11.49, heat:2, emoji:'🌶️'},
+
+    // Burgers — customizable + combo eligible
+    {id:'b1', cat:'burgers', name:'Classic Wildfire Burger', desc:'Beef patty, cheddar, lettuce, tomato, onion, wildfire sauce', price:6.49, heat:0, emoji:'🍔', customizable:true, comboEligible:true},
+    {id:'b2', cat:'burgers', name:'Smokehouse BBQ Bacon Burger', desc:'Bacon, cheddar, crispy onions, smoky BBQ sauce', price:7.49, heat:0, emoji:'🥓', customizable:true, comboEligible:true},
+    {id:'b3', cat:'burgers', name:'Blaze Pepper Burger', desc:'Pepper jack, jalapeños, chipotle mayo', price:7.29, heat:2, emoji:'🌶️', customizable:true, comboEligible:true},
+    {id:'b4', cat:'burgers', name:'Mushroom Swiss Burger', desc:'Sautéed mushrooms, swiss cheese, garlic aioli', price:6.99, heat:0, emoji:'🍄', customizable:true, comboEligible:true},
+    {id:'b5', cat:'burgers', name:'Double Wildfire Stack', desc:'Two beef patties, double cheddar, wildfire sauce', price:8.49, heat:0, emoji:'🍔', customizable:true, comboEligible:true},
+
+    // Chicken
+    {id:'ch1', cat:'chicken', name:'Crispy Chicken Sandwich', desc:'Crispy fillet, pickles, mayo, toasted bun', price:6.29, heat:0, emoji:'🍗', customizable:true, comboEligible:true},
+    {id:'ch2', cat:'chicken', name:'Firecracker Spicy Chicken', desc:'Spicy crispy fillet, pepper jack, firecracker sauce', price:6.79, heat:3, emoji:'🔥', customizable:true, comboEligible:true},
+    {id:'ch3', cat:'chicken', name:'Grilled Chicken Sandwich', desc:'Flame-grilled fillet, lettuce, tomato, herb mayo', price:6.29, heat:0, emoji:'🍗', customizable:true, comboEligible:true},
+    {id:'ch4', cat:'chicken', name:'Chicken Tenders (4pc)', desc:'Golden crispy tenders with your choice of dip', price:5.99, heat:0, emoji:'🍗', customizable:true, comboEligible:true},
+
+    // Sides — sizeable
+    {id:'s1', cat:'sides', name:'Seasoned Fries', desc:'Crispy-cut fries, signature seasoning', price:2.99, heat:0, emoji:'🍟', sizeable:true},
+    {id:'s2', cat:'sides', name:'Sweet Potato Fries', desc:'Lightly sweet, always crispy', price:3.49, heat:0, emoji:'🍠', sizeable:true},
+    {id:'s3', cat:'sides', name:'Onion Rings', desc:'Beer-battered, golden fried', price:3.49, heat:0, emoji:'🧅', sizeable:true},
+    {id:'s4', cat:'sides', name:'Side Salad', desc:'Crisp greens, cherry tomato, house dressing', price:3.29, heat:0, emoji:'🥗'},
+    {id:'s5', cat:'sides', name:'Mac & Cheese Bites', desc:'Creamy mac & cheese, breaded and fried', price:3.99, heat:1, emoji:'🧀'},
+
+    // Drinks — sizeable
+    {id:'d1', cat:'drinks', name:'Fountain Drink', desc:'Cola, lemon-lime, orange, root beer or iced tea', price:1.99, heat:0, emoji:'🥤', sizeable:true},
+    {id:'d2', cat:'drinks', name:'Fresh Lemonade', desc:'Squeezed daily, just the right amount of sweet', price:2.49, heat:0, emoji:'🍋', sizeable:true},
+    {id:'d3', cat:'drinks', name:'Bottled Water', desc:'Still, chilled', price:1.79, heat:0, emoji:'💧'},
+    {id:'d4', cat:'drinks', name:'Iced Coffee', desc:'Cold brew over ice', price:2.99, heat:0, emoji:'🧊', sizeable:true},
+
+    // Sweets
+    {id:'sw1', cat:'sweets', name:'Molten Chocolate Cookie', desc:'Warm, gooey center', price:2.49, heat:0, emoji:'🍪'},
+    {id:'sw2', cat:'sweets', name:'Vanilla Soft Serve Cone', desc:'Classic and creamy', price:1.99, heat:0, emoji:'🍦'},
+    {id:'sw3', cat:'sweets', name:'Wildfire Sundae', desc:'Soft serve, hot fudge, crushed pecans', price:2.99, heat:0, emoji:'🍨'},
+    {id:'sw4', cat:'sweets', name:'Apple Cinnamon Hand Pie', desc:'Flaky crust, warm spiced filling', price:2.29, heat:0, emoji:'🥧'}
+  ];
+
+  /* ============================================================
+     STATE
+     ============================================================ */
+  let lang = 'en';
+  let orderType = null;        // 'dinein' | 'takeout'
+  let customerName = '';       // takeout name or table number
+  let paymentMethod = null;
+  let cart = [];               // {lineId, itemId, name, unitPrice, qty, mods:{size,removed[],extras[]}, comboAdded, comboSize}
+  let cartExpanded = false;
+  let activeCategory = 'combos';
+  let modalItem = null;
+  let modalState = {size:'M', removed:{}, extras:{}, qty:1};
+  let pendingUpsellLine = null;
+  let inactivityTimer = null;
+  let receiptTimer = null;
+  let lineCounter = 1;
+
+  function t(key){ return STR[lang][key] || key; }
+
+  /* ============================================================
+     HELPERS
+     ============================================================ */
+  function money(n){ return '$' + n.toFixed(2); }
+  function findItem(id){ return MENU.find(m => m.id === id); }
+  function heatIcons(n){ return n > 0 ? '🔥'.repeat(n) : ''; }
+
+  function computeModalPrice(item){
+    let p = item.price;
+    if(item.sizeable) p += SIZE_UPCHARGE[modalState.size];
+    if(item.customizable){
+      EXTRAS.forEach(ex => { if(modalState.extras[ex.id]) p += ex.price; });
+    }
+    return p * modalState.qty;
+  }
+
+  function lineDescription(line){
+    const parts = [];
+    if(line.mods.size) parts.push(t('size'+line.mods.size));
+    if(line.mods.removed && line.mods.removed.length) parts.push(line.mods.removed.map(r => t('rem'+cap(r))).join(', '));
+    if(line.mods.extras && line.mods.extras.length) parts.push('+ ' + line.mods.extras.map(e => t(e)).join(', '));
+    if(line.comboAdded) parts.push('🍟🥤 ' + (lang==='en' ? 'Combo added' : 'Combo ajouté'));
+    return parts.join(' · ');
+  }
+  function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function cartSubtotal(){ return cart.reduce((sum,l) => sum + l.unitPrice*l.qty, 0); }
+  function cartTax(){ return cartSubtotal() * TAX_RATE; }
+  function cartTotal(){ return cartSubtotal() + cartTax(); }
+  function cartCount(){ return cart.reduce((n,l) => n + l.qty, 0); }
+
+  function showToast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), 2000);
+  }
+
+  function goScreen(id){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  /* ============================================================
+     INACTIVITY AUTO-RESET
+     ============================================================ */
+  function resetInactivity(){
+    clearTimeout(inactivityTimer);
+    const activeScreen = document.querySelector('.screen.active');
+    if(!activeScreen || activeScreen.id === 'screen-welcome' || activeScreen.id === 'screen-receipt') return;
+    inactivityTimer = setTimeout(() => { hardReset(); }, 75000);
+  }
+  ['click','touchstart','keydown'].forEach(evt => document.addEventListener(evt, resetInactivity, {passive:true}));
+
+  function hardReset(){
+    cart = []; orderType = null; customerName = ''; paymentMethod = null; cartExpanded = false;
+    activeCategory = 'combos';
+    clearTimeout(receiptTimer);
+    renderCart();
+    goScreen('screen-welcome');
+  }
+
+  /* ============================================================
+     RENDER: language + static text
+     ============================================================ */
+  function applyLang(){
+    document.querySelectorAll('[data-t]').forEach(el => {
+      const key = el.getAttribute('data-t');
+      el.textContent = t(key);
+    });
+    document.querySelectorAll('.lang-toggle button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+    renderCategoryRail();
+    renderMenu();
+    renderCart();
+    buildKeyboard();
+  }
+
+  /* ============================================================
+     RENDER: ember particles (welcome screen)
+     ============================================================ */
+  function initEmberField(){
+    const field = document.getElementById('ember-field');
+    field.style.cssText = 'position:absolute; inset:0; overflow:hidden; pointer-events:none;';
+    for(let i=0;i<22;i++){
+      const p = document.createElement('div');
+      const size = 3 + Math.random()*7;
+      p.className = 'ember-particle';
+      p.style.width = size+'px'; p.style.height = size+'px';
+      p.style.left = Math.random()*100+'%';
+      p.style.setProperty('--drift', (Math.random()*80-40)+'px');
+      p.style.animationDuration = (6+Math.random()*7)+'s';
+      p.style.animationDelay = (Math.random()*10)+'s';
+      field.appendChild(p);
+    }
+  }
+
+  /* ============================================================
+     RENDER: category rail + menu grid
+     ============================================================ */
+  function renderCategoryRail(){
+    const rail = document.getElementById('cat-rail');
+    rail.innerHTML = CATEGORIES.map(c => `
+      <button class="cat-btn ${c.id===activeCategory?'active':''}" data-cat="${c.id}">
+        <span class="cat-icon">${c.icon}</span>
+        <span>${t('cat'+cap(c.id)+'Name')}</span>
+      </button>`).join('');
+    rail.querySelectorAll('.cat-btn').forEach(b => b.addEventListener('click', () => {
+      activeCategory = b.dataset.cat; renderCategoryRail(); renderMenu();
+    }));
+  }
+
+  function renderMenu(){
+    const wrap = document.getElementById('menu-scroll');
+    const items = MENU.filter(m => m.cat === activeCategory);
+    wrap.innerHTML = `
+      <div class="menu-cat-heading">${t('cat'+cap(activeCategory)+'Name')}</div>
+      <div class="menu-cat-desc">${t('cat'+cap(activeCategory)+'Desc')}</div>
+      <div class="item-grid">
+        ${items.map(item => `
+          <button class="item-card" data-item="${item.id}">
+            <div class="item-media">${item.emoji}
+              ${item.heat>0?`<span class="heat-badge">${heatIcons(item.heat)}</span>`:''}
+            </div>
+            <div class="item-info">
+              <div class="item-name">${item.name}</div>
+              <div class="item-desc">${item.desc}</div>
+              <div class="item-footer">
+                <span class="item-price">${money(item.price)}</span>
+                <span class="add-chip">${t('addChip')}</span>
+              </div>
+            </div>
+          </button>`).join('')}
+      </div>`;
+    wrap.querySelectorAll('.item-card').forEach(c => c.addEventListener('click', () => openItemModal(c.dataset.item)));
+  }
+
+  /* ============================================================
+     RENDER: cart
+     ============================================================ */
+  function renderCart(){
+    const itemsEl = document.getElementById('cart-items');
+    const subEl = document.getElementById('cart-sub');
+    const summaryEl = document.getElementById('cart-summary');
+    const count = cartCount();
+    subEl.textContent = count === 0 ? '' : (count + (lang==='en' ? ' item'+(count>1?'s':'') : ' article'+(count>1?'s':'')));
+
+    if(cart.length === 0){
+      itemsEl.innerHTML = `<div class="cart-empty"><div class="emoji">🧺</div><div style="font-weight:700;">${t('emptyCartTitle')}</div><div style="font-size:12.5px;">${t('emptyCartSub')}</div></div>`;
+    } else {
+      itemsEl.innerHTML = cart.map(line => `
+        <div class="cart-line" data-line="${line.lineId}">
+          <div class="cart-line-qty">${line.qty}×</div>
+          <div class="cart-line-body">
+            <div class="cart-line-name">${line.name}</div>
+            <div class="cart-line-mods">${lineDescription(line)}</div>
+            <div class="cart-line-actions">
+              <button data-remove="${line.lineId}">${t('removeAction')}</button>
+            </div>
+          </div>
+          <div class="cart-line-price">${money(line.unitPrice*line.qty)}</div>
+        </div>`).join('');
+      itemsEl.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        cart = cart.filter(l => l.lineId !== btn.dataset.remove);
+        renderCart();
+      }));
+    }
+
+    const sub = cartSubtotal(), tax = cartTax(), total = cartTotal();
+    summaryEl.innerHTML = `
+      <div class="sum-row"><span>${t('subtotal')}</span><span>${money(sub)}</span></div>
+      <div class="sum-row"><span>${t('tax')}</span><span>${money(tax)}</span></div>
+      <div class="sum-row total"><span>${t('total')}</span><span>${money(total)}</span></div>
+      <button class="checkout-btn" id="btn-checkout" ${cart.length===0?'disabled':''}>${t('checkout')}</button>`;
+    const cob = document.getElementById('btn-checkout');
+    if(cob) cob.addEventListener('click', goToCheckout);
+
+    document.getElementById('ctb-count').textContent = count;
+    document.getElementById('ctb-total').textContent = money(total);
+    document.getElementById('cart-toggle-bar').classList.toggle('hidden', (cart.length===0 && !cartExpanded) || cartExpanded);
+  }
+
+  document.getElementById('cart-head-toggle').addEventListener('click', () => {
+    if(window.innerWidth <= 900){ cartExpanded = !cartExpanded; applyCartExpansion(); }
+  });
+  document.getElementById('cart-toggle-bar').addEventListener('click', () => {
+    cartExpanded = !cartExpanded; applyCartExpansion();
+  });
+  function applyCartExpansion(){
+    document.getElementById('cart-panel').classList.toggle('expanded', cartExpanded);
+    document.getElementById('cart-toggle-bar').classList.toggle('hidden', (cart.length===0 && !cartExpanded) || cartExpanded);
+  }
+
+  /* ============================================================
+     ITEM MODAL
+     ============================================================ */
+  function openItemModal(itemId){
+    modalItem = findItem(itemId);
+    modalState = {size:'M', removed:{}, extras:{}, qty:1};
+    document.getElementById('modal-emoji').textContent = modalItem.emoji;
+    document.getElementById('modal-name').textContent = modalItem.name;
+    document.getElementById('modal-desc').textContent = modalItem.desc;
+
+    const sizeSection = document.getElementById('modal-size-section');
+    if(modalItem.sizeable){
+      sizeSection.style.display = '';
+      document.getElementById('modal-sizes').innerHTML = ['S','M','L'].map(s => `
+        <button class="pill ${modalState.size===s?'selected':''}" data-size="${s}">${t('size'+(s==='S'?'S':s==='M'?'M':'L'))}${SIZE_UPCHARGE[s]>0?' (+' + SIZE_UPCHARGE[s].toFixed(2) + ')':''}</button>`).join('');
+      bindSizePills();
+    } else { sizeSection.style.display = 'none'; }
+
+    const remSection = document.getElementById('modal-remove-section');
+    const exSection = document.getElementById('modal-extras-section');
+    if(modalItem.customizable){
+      remSection.style.display = '';
+      document.getElementById('modal-removables').innerHTML = REMOVABLES.map(r => `
+        <button class="remove-chip" data-rem="${r}">${t('rem'+cap(r))}</button>`).join('');
+      bindRemovables();
+
+      exSection.style.display = '';
+      document.getElementById('modal-extras').innerHTML = EXTRAS.map(ex => `
+        <div class="toggle-row" data-ex-row="${ex.id}">
+          <span>${t(ex.id)} <span class="price-delta">+${ex.price.toFixed(2)}</span></span>
+          <div class="switch" data-ex="${ex.id}"></div>
+        </div>`).join('');
+      bindExtras();
+    } else { remSection.style.display = 'none'; exSection.style.display = 'none'; }
+
+    document.getElementById('modal-qty-val').textContent = '1';
+    document.getElementById('modal-add-btn').textContent = t('addToOrder');
+    updateModalTotal();
+    document.getElementById('item-modal-backdrop').classList.add('active');
+  }
+
+  function bindSizePills(){
+    document.querySelectorAll('#modal-sizes .pill').forEach(p => p.addEventListener('click', () => {
+      modalState.size = p.dataset.size;
+      document.querySelectorAll('#modal-sizes .pill').forEach(x => x.classList.toggle('selected', x===p));
+      updateModalTotal();
+    }));
+  }
+  function bindRemovables(){
+    document.querySelectorAll('#modal-removables .remove-chip').forEach(chip => chip.addEventListener('click', () => {
+      const r = chip.dataset.rem;
+      modalState.removed[r] = !modalState.removed[r];
+      chip.classList.toggle('off', modalState.removed[r]);
+    }));
+  }
+  function bindExtras(){
+    document.querySelectorAll('#modal-extras .switch').forEach(sw => sw.addEventListener('click', () => {
+      const ex = sw.dataset.ex;
+      modalState.extras[ex] = !modalState.extras[ex];
+      sw.classList.toggle('on', modalState.extras[ex]);
+      updateModalTotal();
+    }));
+  }
+  function updateModalTotal(){
+    document.getElementById('modal-total').textContent = money(computeModalPrice(modalItem));
+  }
+
+  document.getElementById('modal-qty-minus').addEventListener('click', () => {
+    if(modalState.qty > 1){ modalState.qty--; document.getElementById('modal-qty-val').textContent = modalState.qty; updateModalTotal(); }
+  });
+  document.getElementById('modal-qty-plus').addEventListener('click', () => {
+    modalState.qty++; document.getElementById('modal-qty-val').textContent = modalState.qty; updateModalTotal();
+  });
+  document.getElementById('modal-close').addEventListener('click', () => document.getElementById('item-modal-backdrop').classList.remove('active'));
+  document.getElementById('item-modal-backdrop').addEventListener('click', (e) => { if(e.target.id==='item-modal-backdrop') e.currentTarget.classList.remove('active'); });
+
+  document.getElementById('modal-add-btn').addEventListener('click', () => {
+    const unitPrice = computeModalPrice(modalItem) / modalState.qty;
+    const removed = Object.keys(modalState.removed).filter(k => modalState.removed[k]);
+    const extras = Object.keys(modalState.extras).filter(k => modalState.extras[k]);
+    const line = {
+      lineId: 'L' + (lineCounter++),
+      itemId: modalItem.id,
+      name: modalItem.name,
+      unitPrice,
+      qty: modalState.qty,
+      mods: { size: modalItem.sizeable ? modalState.size : null, removed, extras },
+      comboAdded:false, comboSize:null
+    };
+    cart.push(line);
+    renderCart();
+    document.getElementById('item-modal-backdrop').classList.remove('active');
+    showToast('✓ ' + t('addedToast'));
+
+    if(modalItem.comboEligible){
+      pendingUpsellLine = line.lineId;
+      document.getElementById('upsell-price').textContent = '+' + money(COMBO_BASE);
+      document.getElementById('upsell-modal-backdrop').classList.add('active');
+    }
+  });
+
+  /* combo upsell handlers */
+  document.getElementById('upsell-yes').addEventListener('click', () => {
+    const line = cart.find(l => l.lineId === pendingUpsellLine);
+    if(line){ line.comboAdded = true; line.unitPrice += COMBO_BASE; renderCart(); showToast('🍟🥤 ' + (lang==='en'?'Combo added':'Combo ajouté')); }
+    document.getElementById('upsell-modal-backdrop').classList.remove('active');
+  });
+  document.getElementById('upsell-no').addEventListener('click', () => document.getElementById('upsell-modal-backdrop').classList.remove('active'));
+
+  /* ============================================================
+     NAVIGATION: welcome -> order type -> order -> checkout -> processing -> receipt
+     ============================================================ */
+  document.getElementById('btn-start').addEventListener('click', () => goScreen('screen-ordertype'));
+
+  document.querySelectorAll('[data-ordertype]').forEach(btn => btn.addEventListener('click', () => {
+    orderType = btn.dataset.ordertype;
+    goScreen('screen-order');
+    activeCategory = 'combos';
+    renderCategoryRail(); renderMenu(); renderCart();
+  }));
+
+  document.getElementById('btn-back-ordertype').addEventListener('click', () => goScreen('screen-ordertype'));
+  document.getElementById('btn-back-order').addEventListener('click', () => goScreen('screen-order'));
+
+  function goToCheckout(){
+    if(cart.length === 0) return;
+    customerName = '';
+    paymentMethod = null;
+    document.getElementById('co-identity-title').textContent = orderType === 'dinein' ? t('tableNumberTitle') : t('whoIsThisFor');
+    document.getElementById('name-display').textContent = t(orderType === 'dinein' ? 'tablePlaceholder' : 'namePlaceholder');
+    document.getElementById('name-display').classList.add('placeholder');
+    document.querySelectorAll('.pay-tile').forEach(p => p.classList.remove('selected'));
+    document.getElementById('co-total-amt').textContent = money(cartTotal());
+    updatePayButton();
+    buildKeyboard();
+    goScreen('screen-checkout');
+  }
+
+  function buildKeyboard(){
+    const kb = document.getElementById('keyboard');
+    if(orderType === 'dinein'){
+      const rows = [['1','2','3'],['4','5','6'],['7','8','9'],['⌫','0','Done']];
+      kb.innerHTML = rows.map(row => `<div class="kb-row">${row.map(k => `<button class="kb-key ${k.length>1?'wide':''}" data-key="${k}">${k==='Done'?t('keyDone'):k}</button>`).join('')}</div>`).join('');
+    } else {
+      const rows = [
+        ['Q','W','E','R','T','Y','U','I','O','P'],
+        ['A','S','D','F','G','H','J','K','L'],
+        ['Z','X','C','V','B','N','M','⌫'],
+        ['Space','Done']
+      ];
+      kb.innerHTML = rows.map(row => `<div class="kb-row">${row.map(k => `<button class="kb-key ${k.length>1?'wide':''}" data-key="${k}">${k==='Space'?t('keySpace'):k==='Done'?t('keyDone'):k}</button>`).join('')}</div>`).join('');
+    }
+    kb.querySelectorAll('.kb-key').forEach(k => k.addEventListener('click', () => handleKey(k.dataset.key)));
+  }
+
+  function handleKey(key){
+    if(key === 'Done'){
+      if(!customerName.trim()){ showToast(orderType==='dinein' ? t('needTable') : t('needName')); return; }
+      return;
+    }
+    if(key === '⌫'){ customerName = customerName.slice(0,-1); }
+    else if(key === 'Space'){ customerName += ' '; }
+    else { customerName += key; }
+    const disp = document.getElementById('name-display');
+    disp.textContent = customerName || t(orderType === 'dinein' ? 'tablePlaceholder' : 'namePlaceholder');
+    disp.classList.toggle('placeholder', !customerName);
+    updatePayButton();
+  }
+
+  document.querySelectorAll('.pay-tile').forEach(tile => tile.addEventListener('click', () => {
+    paymentMethod = tile.dataset.pay;
+    document.querySelectorAll('.pay-tile').forEach(p => p.classList.toggle('selected', p===tile));
+    updatePayButton();
+  }));
+
+  function updatePayButton(){
+    const ok = customerName.trim().length > 0 && paymentMethod;
+    document.getElementById('btn-pay-now').disabled = !ok;
+  }
+
+  document.getElementById('btn-pay-now').addEventListener('click', () => {
+    if(!customerName.trim()){ showToast(orderType==='dinein' ? t('needTable') : t('needName')); return; }
+    goScreen('screen-processing');
+    setTimeout(finalizeOrder, 1700);
+  });
+
+  function finalizeOrder(){
+    const orderNum = Math.floor(100 + Math.random()*900);
+    document.getElementById('receipt-num').textContent = '#' + orderNum;
+    document.getElementById('receipt-meta').textContent = (orderType==='dinein' ? t('dineinMetaPrefix') : t('takeoutMetaPrefix')) + ': ' + customerName;
+    document.getElementById('receipt-list').innerHTML = cart.map(l => `
+      <div class="rl-row"><span>${l.qty}× ${l.name}</span><span>${money(l.unitPrice*l.qty)}</span></div>`).join('');
+    document.getElementById('receipt-total-amt').textContent = money(cartTotal());
+    document.getElementById('receipt-thanks').textContent = orderType==='dinein' ? t('thanksDinein') : t('thanksTakeout');
+
+    const fill = document.getElementById('receipt-progress-fill');
+    fill.style.animation = 'none'; void fill.offsetWidth; fill.style.animation = 'countdown 14s linear forwards';
+
+    goScreen('screen-receipt');
+    clearTimeout(receiptTimer);
+    receiptTimer = setTimeout(hardReset, 14000);
+  }
+
+  document.getElementById('btn-new-order').addEventListener('click', hardReset);
+
+  /* ============================================================
+     LANGUAGE TOGGLE
+     ============================================================ */
+  document.querySelectorAll('.lang-toggle button').forEach(btn => btn.addEventListener('click', () => {
+    lang = btn.dataset.lang;
+    applyLang();
+  }));
+
+  /* ============================================================
+     INIT
+     ============================================================ */
+  initEmberField();
+  applyLang();
+})();
+</script>
+</body>
+</html>
