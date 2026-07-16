@@ -20,10 +20,10 @@
     --font-display:'Fredoka',sans-serif; --font-body:'Work Sans',sans-serif;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0; padding:0; height:100%; overflow:hidden; font-family:var(--font-body); background:var(--char); color:var(--ash); user-select:none;}
+  html,body{margin:0; padding:0; width:100%; height:100%; overflow:hidden; font-family:var(--font-body); background:var(--char); color:var(--ash); user-select:none;}
   button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
   input{font-family:inherit;}
-  .app{position:relative; width:100%; height:100vh; height:100dvh; overflow:hidden;}
+  .app{position:absolute; inset:0; width:100%; height:100%; overflow:hidden;}
   .screen{position:absolute; inset:0; display:none; flex-direction:column; opacity:0; transition:opacity .35s ease;}
   .screen.active{display:flex; opacity:1;}
   h1,h2,h3{font-family:var(--font-display); margin:0; color:var(--ash);}
@@ -534,39 +534,33 @@
   const COMBO_BASE = 3.49, COMBO_UPSIZE = 0.80, TAX_RATE = 0.08;
 
   const MENU = [
-    // Combos — fixed bundles, quantity only
     {id:'combo1', cat:'combos', name:'Wildfire Classic Combo', desc:'Classic Wildfire Burger, seasoned fries & a fountain drink', price:10.99, heat:0, emoji:'🍔'},
     {id:'combo2', cat:'combos', name:'Smokehouse BBQ Combo', desc:'BBQ Bacon Burger, seasoned fries & a fountain drink', price:11.99, heat:0, emoji:'🥓'},
     {id:'combo3', cat:'combos', name:'Crispy Chicken Combo', desc:'Crispy Chicken Sandwich, seasoned fries & a fountain drink', price:10.49, heat:0, emoji:'🍗'},
     {id:'combo4', cat:'combos', name:'Spicy Blaze Combo', desc:'Blaze Pepper Burger, seasoned fries & a fountain drink', price:11.49, heat:2, emoji:'🌶️'},
 
-    // Burgers — customizable + combo eligible
     {id:'b1', cat:'burgers', name:'Classic Wildfire Burger', desc:'Beef patty, cheddar, lettuce, tomato, onion, wildfire sauce', price:6.49, heat:0, emoji:'🍔', customizable:true, comboEligible:true},
     {id:'b2', cat:'burgers', name:'Smokehouse BBQ Bacon Burger', desc:'Bacon, cheddar, crispy onions, smoky BBQ sauce', price:7.49, heat:0, emoji:'🥓', customizable:true, comboEligible:true},
     {id:'b3', cat:'burgers', name:'Blaze Pepper Burger', desc:'Pepper jack, jalapeños, chipotle mayo', price:7.29, heat:2, emoji:'🌶️', customizable:true, comboEligible:true},
     {id:'b4', cat:'burgers', name:'Mushroom Swiss Burger', desc:'Sautéed mushrooms, swiss cheese, garlic aioli', price:6.99, heat:0, emoji:'🍄', customizable:true, comboEligible:true},
     {id:'b5', cat:'burgers', name:'Double Wildfire Stack', desc:'Two beef patties, double cheddar, wildfire sauce', price:8.49, heat:0, emoji:'🍔', customizable:true, comboEligible:true},
 
-    // Chicken
     {id:'ch1', cat:'chicken', name:'Crispy Chicken Sandwich', desc:'Crispy fillet, pickles, mayo, toasted bun', price:6.29, heat:0, emoji:'🍗', customizable:true, comboEligible:true},
     {id:'ch2', cat:'chicken', name:'Firecracker Spicy Chicken', desc:'Spicy crispy fillet, pepper jack, firecracker sauce', price:6.79, heat:3, emoji:'🔥', customizable:true, comboEligible:true},
     {id:'ch3', cat:'chicken', name:'Grilled Chicken Sandwich', desc:'Flame-grilled fillet, lettuce, tomato, herb mayo', price:6.29, heat:0, emoji:'🍗', customizable:true, comboEligible:true},
     {id:'ch4', cat:'chicken', name:'Chicken Tenders (4pc)', desc:'Golden crispy tenders with your choice of dip', price:5.99, heat:0, emoji:'🍗', customizable:true, comboEligible:true},
 
-    // Sides — sizeable
     {id:'s1', cat:'sides', name:'Seasoned Fries', desc:'Crispy-cut fries, signature seasoning', price:2.99, heat:0, emoji:'🍟', sizeable:true},
     {id:'s2', cat:'sides', name:'Sweet Potato Fries', desc:'Lightly sweet, always crispy', price:3.49, heat:0, emoji:'🍠', sizeable:true},
     {id:'s3', cat:'sides', name:'Onion Rings', desc:'Beer-battered, golden fried', price:3.49, heat:0, emoji:'🧅', sizeable:true},
     {id:'s4', cat:'sides', name:'Side Salad', desc:'Crisp greens, cherry tomato, house dressing', price:3.29, heat:0, emoji:'🥗'},
     {id:'s5', cat:'sides', name:'Mac & Cheese Bites', desc:'Creamy mac & cheese, breaded and fried', price:3.99, heat:1, emoji:'🧀'},
 
-    // Drinks — sizeable
     {id:'d1', cat:'drinks', name:'Fountain Drink', desc:'Cola, lemon-lime, orange, root beer or iced tea', price:1.99, heat:0, emoji:'🥤', sizeable:true},
     {id:'d2', cat:'drinks', name:'Fresh Lemonade', desc:'Squeezed daily, just the right amount of sweet', price:2.49, heat:0, emoji:'🍋', sizeable:true},
     {id:'d3', cat:'drinks', name:'Bottled Water', desc:'Still, chilled', price:1.79, heat:0, emoji:'💧'},
     {id:'d4', cat:'drinks', name:'Iced Coffee', desc:'Cold brew over ice', price:2.99, heat:0, emoji:'🧊', sizeable:true},
 
-    // Sweets
     {id:'sw1', cat:'sweets', name:'Molten Chocolate Cookie', desc:'Warm, gooey center', price:2.49, heat:0, emoji:'🍪'},
     {id:'sw2', cat:'sweets', name:'Vanilla Soft Serve Cone', desc:'Classic and creamy', price:1.99, heat:0, emoji:'🍦'},
     {id:'sw3', cat:'sweets', name:'Wildfire Sundae', desc:'Soft serve, hot fudge, crushed pecans', price:2.99, heat:0, emoji:'🍨'},
@@ -577,10 +571,10 @@
      STATE
      ============================================================ */
   let lang = 'en';
-  let orderType = null;        // 'dinein' | 'takeout'
-  let customerName = '';       // takeout name or table number
+  let orderType = null;
+  let customerName = '';
   let paymentMethod = null;
-  let cart = [];               // {lineId, itemId, name, unitPrice, qty, mods:{size,removed[],extras[]}, comboAdded, comboSize}
+  let cart = [];
   let cartExpanded = false;
   let activeCategory = 'combos';
   let modalItem = null;
@@ -896,7 +890,7 @@
   document.getElementById('upsell-no').addEventListener('click', () => document.getElementById('upsell-modal-backdrop').classList.remove('active'));
 
   /* ============================================================
-     NAVIGATION: welcome -> order type -> order -> checkout -> processing -> receipt
+     NAVIGATION
      ============================================================ */
   document.getElementById('btn-start').addEventListener('click', () => goScreen('screen-ordertype'));
 
